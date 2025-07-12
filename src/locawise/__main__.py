@@ -66,7 +66,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except (Exception,):
-        logging.exception("An unrecoverable error occurred.")
+    asyncio.run(main())
