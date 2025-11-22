@@ -3,9 +3,9 @@ import asyncio
 import logging
 import os
 
-from locawise.envutils import generate_localization_file_name
 from locawise.llm import LLMContext, create_strategy
-from locawise.localization.config import read_localization_config_yaml
+from locawise.localization.config import read_localization_config_yaml, LocalizationConfig, \
+    create_language_file_path_config
 from locawise.lockfile import write_lock_file
 from locawise.processor import create_source_processor
 
@@ -24,23 +24,21 @@ async def main():
     # Run the async main function
     config_path = args.config_path
 
-    config = await read_localization_config_yaml(config_path)
+    config: LocalizationConfig = await read_localization_config_yaml(config_path)
+
     config_directory = os.path.dirname(os.path.abspath(config_path))
     logging.info(f'Setting current working directory to {config_directory}')
     os.chdir(config_directory)
 
-    source_lang_file_name = generate_localization_file_name(config.source_lang_code, config.file_name_pattern)
-    source_lang_file_path = os.path.join(config_directory, config.localization_root_path, source_lang_file_name)
-
-    if not os.path.exists(source_lang_file_path):
-        if 'values-{language}' in config.file_name_pattern:
-            source_lang_file_path = os.path.join(config_directory, config.localization_root_path,
-                                                 config.file_name_pattern.replace('values-{language}', 'values'))
-        elif 'messages' in config.file_name_pattern:
-            source_lang_file_path = os.path.join(config_directory, config.localization_root_path,
-                                                 config.file_name_pattern.replace('messages_{language}',
-                                                                                  'messages'))
-
+    language_file_path_config: dict[str, str] = create_language_file_path_config(
+        localization_root_path=config.localization_root_path,
+        source_lang_code=config.source_lang_code,
+        target_lang_codes=config.target_lang_codes,
+        config_directory_absolute_path=config_directory,
+        file_name_pattern=config.file_name_pattern,
+        language_file_paths=config.language_file_paths,
+    )
+    source_lang_file_path = language_file_path_config[config.source_lang_code]
     logging.info(f'Localizing {source_lang_file_path}')
 
     llm_strategy = create_strategy(model=config.llm_model, location=config.llm_location)
@@ -57,8 +55,7 @@ async def main():
     async with asyncio.TaskGroup() as tg:
         for target_lang_code in config.target_lang_codes:
             logging.info(f'Creating task for {target_lang_code}')
-            target_file_name = generate_localization_file_name(target_lang_code, config.file_name_pattern)
-            target_path = os.path.join(config_directory, config.localization_root_path, target_file_name)
+            target_path = language_file_path_config[target_lang_code]
             tg.create_task(processor.localize_to_target_language(target_path, target_lang_code))
 
         tg.create_task(write_lock_file(lock_file_path, processor.source_dict))
