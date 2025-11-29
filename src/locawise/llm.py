@@ -164,6 +164,9 @@ def _parse_json_text(text: str) -> dict[str, str]:
 
 
 def create_strategy(model: str | None, location: str | None) -> LLMStrategy:
+    if model == 'mock':
+        return MockLLMStrategy()
+
     openai_key = retrieve_openai_api_key()
     if openai_key:
         return OpenAiLLMStrategy(model=model)

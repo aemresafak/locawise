@@ -41,11 +41,11 @@ def test_localization_config_with_invalid_target_lang_code_in_language_file_path
 
 
 @pytest.mark.parametrize(['file_name_pattern', 'target_language_codes', 'language_file_paths'], [
-    (None, None, None),
-    (None, {'en'}, None),
+    (None, set(), dict()),
+    (None, {'en'}, dict()),
     (None, {'en'}, {'en': 'en.json'}),
-    ('{language}.json', None, None),
-    ('{language}.json', None, {'en': 'en.json'}),
+    ('{language}.json', set(), dict()),
+    ('{language}.json', set(), {'en': 'en.json'}),
     ('{language}.json', {'en'}, {'en': 'en.json'}),
 ])
 def test_localization_config_with_invalid_combinations_for_target_language_mappings(file_name_pattern,

@@ -62,7 +62,11 @@ pip install locawise
 
 Create an `i18n.yaml` file in the root of your project (or a path of your choice). This file tells locawise how to handle your translations.
 
-Here's a basic example:
+There are **two ways** to configure your language file locations:
+
+#### Option A: Using File Name Pattern (Recommended for consistent naming)
+
+Use this when your files follow a predictable naming pattern:
 
 ```yaml
 # Localization Configuration
@@ -77,6 +81,7 @@ localization-root-path: "src/main/resources/i18n"
 # Use {ext} as a placeholder for the file extension if it's part of the language specific name.
 # If your files are like 'en.json', 'fr.json', use "{language}.json"
 # If your files are like 'messages_en.properties', 'messages_fr.properties', use "messages_{language}.properties"
+# note this will also match messages.properties if source file not found
 file-name-pattern: "messages_{language}.properties"
 
 # Source language code (required). This is the language Locawise will translate FROM.
@@ -115,6 +120,41 @@ tone: "professional and helpful"
 # (Optional) Specify the LLM location (primarily for VertexAI).
 # llm-location: "us-central1"
 ```
+
+#### Option B: Using Custom Language File Paths (For custom file structures)
+
+Use this when your files have custom names or are located in different subdirectories:
+
+```yaml
+# Localization Configuration
+version: v1.0
+
+# Path to the root directory containing your localization files.
+localization-root-path: "src/main/resources/i18n"
+
+# Source language code (required). This is the language Locawise will translate FROM.
+source-lang-code: "en"
+
+# Custom file paths for each language (relative to localization-root-path)
+# This approach gives you complete control over file locations and naming
+language-file-paths:
+  en: "en-US/strings.json"       # Source language
+  tr: "tr-TR/strings.json"       # Turkish
+  de: "de-DE/strings.json"       # German
+  fr: "fr-FR.json"               # French (different structure is fine)
+  es: "locales/spanish.json"     # Spanish (in subdirectory)
+
+# (Optional) Context, glossary, tone, and LLM settings work the same
+context: |
+  Your application context here...
+
+glossary:
+  merchant: "A business entity using Servouts's services."
+
+tone: "professional and helpful"
+```
+
+**Important**: You must use **either** the pattern-based approach (`file-name-pattern` + `target-lang-codes`) **or** the custom paths approach (`language-file-paths`), but not both.
 
 ### 3. Set Up Environment Variables (for LLM Provider Credentials)
 
@@ -159,11 +199,39 @@ Locawise will then perform the translation process based on your settings.
 
 The `i18n.yaml` file is central to using locawise. Here's a breakdown of its fields based on the LocalizationConfig model:
 
+### Required Fields
+
 - **version** (str): The version of the localization configuration schema (e.g., "v1.0").
-- **localization-root-path** (str, required): The path to the directory where your language files are stored (e.g., "locales/", "src/main/resources/i18n"). This is relative to the source of the repository.
-- **file-name-pattern** (str, required): A pattern that describes how your localization files are named. Use {language} as a placeholder for the language code (e.g., "{language}.json" is converted to en.json, fr.json, "messages_{language}.properties" is converted to messages_en.properties, messages_fr.properties etc.).
-- **source-lang-code** (str, required): The two-letter ISO 639-1 code for your application's primary language (e.g., "en", "es").
-- **target-lang-codes** (list[str], required): A list of two-letter ISO 639-1 language codes to translate your application into (e.g., ["fr", "de", "ja"]).
+- **localization-root-path** (str): The path to the directory where your language files are stored (e.g., "locales/", "src/main/resources/i18n"). This is relative to the root of the repository.
+- **source-lang-code** (str): The two-letter ISO 639-1 code for your application's primary language (e.g., "en", "es").
+
+### Language File Configuration (Choose ONE approach)
+
+You must provide **either** Option A or Option B:
+
+#### Option A: Pattern-Based Configuration
+- **file-name-pattern** (str): A pattern that describes how your localization files are named. Use `{language}` as a placeholder for the language code.
+  - Examples:
+    - `"{language}.json"` → en.json, fr.json, es.json
+    - `"messages_{language}.properties"` → messages_en.properties, messages_fr.properties
+- **target-lang-codes** (list[str]): A list of two-letter ISO 639-1 language codes to translate your application into (e.g., ["fr", "de", "ja"]).
+
+**Note**: When using `file-name-pattern`, both fields are required together.
+
+#### Option B: Custom Path Configuration
+- **language-file-paths** (dict[str, str]): A dictionary mapping language codes to their specific file paths (relative to `localization-root-path`). Use this when your files don't follow a consistent naming pattern or are in different subdirectories.
+  - Example:
+    ```yaml
+    language-file-paths:
+      en: "en-US/strings.json"
+      tr: "tr-TR/strings.json"
+      de: "german/localization.json"
+    ```
+  - All language codes (including source language) must be valid two-letter ISO 639-1 codes
+  - When using this approach, do not provide `file-name-pattern` or `target-lang-codes`
+
+### Optional Fields
+
 - **context** (str, optional): A multi-line string providing detailed context about your application, its domain, target audience, or any specific style guidelines. This dramatically improves the quality and relevance of AI translations.
 - **glossary** (dict[str, str], optional): A dictionary where keys are terms in your source-lang-code and values are their definitions or specific instructions for the AI. This helps maintain consistency for brand-specific or technical terms.
   - Example: `invoice: "A bill for goods or services provided."`
@@ -174,7 +242,9 @@ The `i18n.yaml` file is central to using locawise. Here's a breakdown of its fie
 ## How It Works
 
 1. **Configuration Load**: When you run `python3 -m locawise <config_file>`, locawise reads your specified YAML configuration.
-2. **File Discovery**: It scans the `localization-root-path` for your source language file based on `file-name-pattern`.
+2. **File Discovery**: It locates your source and target language files using either:
+   - The `file-name-pattern` to generate file paths from language codes, or
+   - The explicit paths defined in `language-file-paths`
 3. **Lock File Check**: It compares the current state of your source language file against the `i18n.lock` file (created in the `localization-root-path`) to identify new or modified keys.
 4. **AI Translation**: For each new/modified key, locawise:
    - Constructs a prompt for the LLM, incorporating the key, its source language value, the overall context, relevant glossary entries, and the desired tone.
@@ -191,6 +261,7 @@ Currently, locawise supports:
 
 - `.json` (flat key-value structures and nested objects)
 - `.properties` (Java properties files)
+- `.xml` (Android strings xml)
 
 The architecture is designed for easy extension. Support for more formats (e.g., YAML, XML, XLIFF, ARB) is planned for the future!
 
@@ -200,7 +271,6 @@ You can choose between OpenAI and Google's VertexAI. Ensure credentials and prov
 
 ### OpenAI
 - **Credentials**: Set the `OPENAI_API_KEY` environment variable.
-- **Provider Selection**: Set `LOCAWISE_LLM_PROVIDER="openai"` or `llm-provider: "openai"` in config.
 - **Models**: Specify models like `gpt-4o`, `gpt-4-turbo`, `gpt-3.5-turbo` via `llm-model` in `i18n.yaml`.
 
 ### Vertex AI (Google Cloud)
@@ -208,7 +278,6 @@ You can choose between OpenAI and Google's VertexAI. Ensure credentials and prov
   - Set `GOOGLE_CLOUD_PROJECT` environment variable.
   - Authenticate locally via `gcloud auth application-default login`.
   - For non-interactive/CI environments, use service account keys (e.g., by setting `GOOGLE_APPLICATION_CREDENTIALS`).
-- **Provider Selection**: Set `LOCAWISE_LLM_PROVIDER="vertexai"` or `llm-provider: "vertexai"` in config.
 - **Models**: Specify models like `gemini-1.5-flash-001`, `gemini-1.0-pro` via `llm-model` and optionally `llm-location` in `i18n.yaml`.
 
 ## Using with locawise-action for CI/CD Automation

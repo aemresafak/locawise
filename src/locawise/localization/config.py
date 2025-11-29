@@ -1,36 +1,73 @@
 import logging
 import os
-from typing import Self
+from typing import Self, Annotated
 
 import yaml
 from pydantic import BaseModel, ValidationError, model_validator, Field, ConfigDict
 
 from locawise.envutils import generate_localization_file_name
 from locawise.errors import InvalidYamlConfigError, InvalidLanguageCodeError, \
-    InvalidTargetLanguageMappingCombinationError
+    InvalidTargetLanguageMappingCombinationError, LocalizationConfigValidationError
 from locawise.fileutils import read_file
 from locawise.langutils import is_valid_two_letter_lang_code
 
 INVALID_TARGET_LANGUAGE_MAPPING_COMBINATION = ("Either language-file-paths or target-lang-codes with file-name-pattern "
                                                "must be provided")
 
+LocalizationRootPath = Annotated[
+    str,
+    Field(serialization_alias="localization-root-path", validation_alias="localization-root-path")
+]
+
+SourceLangCode = Annotated[
+    str,
+    Field(serialization_alias="source-lang-code", validation_alias="source-lang-code")
+]
+
+TargetLangCodes = Annotated[
+    set[str],
+    Field(serialization_alias="target-lang-codes", validation_alias="target-lang-codes")
+]
+
+FileNamePattern = Annotated[
+    str | None,
+    Field(serialization_alias="file-name-pattern", validation_alias="file-name-pattern")
+]
+
+LanguageFilePaths = Annotated[
+    dict[str, str],
+    Field(
+        serialization_alias="language-file-paths",
+        validation_alias="language-file-paths",
+        description="A mapping of language codes to their specific file paths. If provided, this mapping will be used "
+                    "instead of generating file names based on a pattern. Paths should be relative to the "
+                    "localization root path."
+    )
+]
+
+LlmModel = Annotated[
+    str | None,
+    Field(serialization_alias="llm-model", validation_alias="llm-model")
+]
+
+LlmLocation = Annotated[
+    str | None,
+    Field(serialization_alias="llm-location", validation_alias="llm-location")
+]
+
 
 class LocalizationConfig(BaseModel):
     version: str
-    localization_root_path: str = Field(default="", serialization_alias="localization-root-path")
-    source_lang_code: str = Field(serialization_alias="source-lang-code")
-    target_lang_codes: set[str] | None = Field(default=None, serialization_alias="target-lang-codes")
-    file_name_pattern: str | None = Field(default=None, serialization_alias="file-name-pattern")
-    language_file_paths: dict[str, str] | None = Field(default=None, serialization_alias="language-file-paths",
-                                                       description="A\
-mapping of language codes to their specific file paths. If provided, this mapping will be used instead of\
-generating file names based on a pattern. Paths should be relative to the localization root path."
-                                                       )
+    localization_root_path: LocalizationRootPath = ''
+    source_lang_code: SourceLangCode
+    target_lang_codes: TargetLangCodes = set()
+    file_name_pattern: FileNamePattern = None
+    language_file_paths: LanguageFilePaths = dict()
     context: str = ""
-    glossary: dict[str, str] = Field(default_factory=dict)
+    glossary: dict[str, str] = dict()
     tone: str = ""
-    llm_model: str | None = Field(default=None, serialization_alias="llm-model")
-    llm_location: str | None = Field(default=None, serialization_alias="llm-location")
+    llm_model: LlmModel = None
+    llm_location: LlmLocation = None
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -76,6 +113,9 @@ async def read_localization_config_yaml(file_path: str) -> LocalizationConfig:
     try:
         config = LocalizationConfig(**yaml_dict)
         return config
+    except LocalizationConfigValidationError as e:
+        logging.error(f"Could not convert yaml file to config {yaml_dict} {e}")
+        raise InvalidYamlConfigError("Invalid YAML file")
     except ValidationError as e:
         logging.error(f"Could not convert yaml file to config {yaml_dict} {e}")
         raise InvalidYamlConfigError("Invalid YAML file")
