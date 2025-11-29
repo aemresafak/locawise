@@ -45,3 +45,15 @@ class LocalizationFileAlreadyUpToDateError(Exception):
 
 class MalformedAndroidStringsXMLError(Exception):
     pass
+
+
+class LocalizationConfigValidationError(Exception):
+    pass
+
+
+class InvalidLanguageCodeError(LocalizationConfigValidationError):
+    pass
+
+
+class InvalidTargetLanguageMappingCombinationError(LocalizationConfigValidationError):
+    pass

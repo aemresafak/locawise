@@ -25,7 +25,6 @@ async def main():
     config_path = args.config_path
 
     config: LocalizationConfig = await read_localization_config_yaml(config_path)
-
     config_directory = os.path.dirname(os.path.abspath(config_path))
     logging.info(f'Setting current working directory to {config_directory}')
     os.chdir(config_directory)
