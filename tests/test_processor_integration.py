@@ -346,7 +346,7 @@ async def test_create_source_processor_with_properties_no_lock():
             "key2": "value2",
             "key3": "value3"
         }
-        expected_nom_keys = {'key1', 'key2', 'key3'}
+        expected_nom_keys = set()
         _assert_processor_properties(
             processor,
             expected_values,
@@ -385,7 +385,7 @@ async def test_create_source_processor_with_json_no_lock():
             "key2": "value2",
             "key3": "value3"
         }
-        expected_nom_keys = {'key1', 'key2', 'key3'}
+        expected_nom_keys = set()
         _assert_processor_properties(
             processor,
             expected_values,
@@ -424,7 +424,7 @@ async def test_create_source_processor_with_xml_no_lock():
             "key2": "value2",
             "key3": "value3"
         }
-        expected_nom_keys = {'key1', 'key2', 'key3'}
+        expected_nom_keys = set()
         _assert_processor_properties(
             processor,
             expected_values,

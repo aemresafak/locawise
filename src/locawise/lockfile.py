@@ -27,12 +27,13 @@ async def read_lock_file(file_path: str) -> set[str]:
                     continue
 
                 key_value_hashes.add(line)
-    except FileNotFoundError:
+    except FileNotFoundError as e:
         logging.warning("Lock file not found. Ignore this if it's the first time you are running this application.")
+        raise e
     except (Exception,):
         logging.warning(f"Unknown error while reading the lock file {file_path}")
-    finally:
-        return key_value_hashes
+
+    return key_value_hashes
 
 
 async def write_lock_file(file_path: str, key_value_pairs: dict[str, str]):

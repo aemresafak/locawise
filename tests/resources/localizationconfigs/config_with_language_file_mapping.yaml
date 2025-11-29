@@ -1,0 +1,12 @@
+# Localization Configuration
+version: v1.0
+context: You work for a finance company               # Optional context information
+glossary:                   # Optional glossary dictionary
+  key1: value1
+  key2: value2
+tone: Be as kind as possible                  # Optional tone setting
+source-lang-code: tr         # Source language code (required)
+language-file-paths:
+  en: en-US.json
+  tr: tr-TR.json
+  de: de.json

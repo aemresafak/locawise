@@ -97,8 +97,11 @@ async def create_source_processor(llm_context: LLMContext,
     :raises ValueError:
     """
     source_dict = await parse(source_file_path)
-    key_value_hashes: set[str] = await read_lock_file(lock_file_path)
-    nom_keys = retrieve_nom_source_keys(key_value_hashes, source_dict=source_dict)
+    try:
+        key_value_hashes: set[str] = await read_lock_file(lock_file_path)
+        nom_keys: set[str] = retrieve_nom_source_keys(key_value_hashes, source_dict=source_dict)
+    except FileNotFoundError:
+        nom_keys: set[str] = set()
     return SourceProcessor(llm_context,
                            source_dict,
                            nom_keys=nom_keys,
